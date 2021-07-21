@@ -30,14 +30,26 @@
 				<version>${mule.maven.plugin.version}</version>
 				<extensions>true</extensions>
 				<configuration>
-					<deploymentType>arm</deploymentType>
+					<!-- <deploymentType>arm</deploymentType>
 			    	<username>${anypoint.username}</username>
 			    	<password>${anypoint.password}</password>
 			    	<target>${target}</target>
 					<targetType>${target.type}</targetType>
 					<environment>${env}</environment>
 			    	<applicationName>${appname}</applicationName>
-					<classifier>mule-application</classifier>
+					<classifier>mule-application</classifier> -->
+				<armDeployment>
+			      <muleVersion>${mule.version}</muleVersion>
+			      <uri>https://anypoint.mulesoft.com</uri>
+			      <target>${target}</target>
+			      <targetType>${target.type}</targetType>
+			      <username>${anypoint.username}</username>
+			      <password>${anypoint.password}</password>
+			      <environment>${env}</environment>
+			      <applicationName>${appname}</applicationName>
+			      <workerType>${vCore}</workerType>
+				  <workers>${workers}</workers>
+	    	</armDeployment>
 				</configuration>
 			</plugin>
 		</plugins>

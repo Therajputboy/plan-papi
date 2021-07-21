@@ -1,0 +1,16 @@
+#%RAML 1.0 Library
+traits:
+  client-Id-Required:
+    headers:
+      client_id:
+        type: string
+        description: Client Id provided by API Manager 
+        required: true
+      client_secret:
+          type: string
+          description: Client Secret provided by API Manager
+    responses:
+      401:
+        description: Authorization Failed Invalid Credentials
+      500:
+        description: Internal Server Error    

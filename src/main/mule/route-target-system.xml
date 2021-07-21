@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd">
+	<sub-flow name="Call-Traget-System" doc:id="3df69575-6164-40b5-b66b-e5c6432fc7f2" >
+		<parallel-foreach doc:name="Parallel For Each" doc:id="42e78d7a-8f4c-4727-945b-4acc04bcf63e" collection="#[vars.routeAPIResponse]" target="targetAPIResponse">
+		<until-successful maxRetries="${reconnection.attempts}" doc:name="Retry three times Until Successful" doc:id="ab0c880c-08a6-4941-bad0-10ed993a823f" millisBetweenRetries="${reconnection.frequency}">
+			<try doc:name="Try" doc:id="411801a4-5cdd-4078-8221-b0f89351378e" >
+						<http:request method="POST" doc:name="Request to Target System" doc:id="923c9281-085c-4cdb-a134-521e05cdef42" config-ref="Target_SAPI_HTTP_Request_configuration" url="#[payload.target]" target="targetAPIResponse">
+				<http:body><![CDATA[#[vars.targetPayload]]]></http:body>
+				<http:headers><![CDATA[#[output application/java
+---
+{
+ "client_id": payload.client_id,
+ "client_secret": payload.client_secret,
+ "TransmissionDateTime" : now(),
+ "CompanyCode": vars.routingCode,
+ "SendToCPS": vars.sendToCPS,
+ "AutoPay": vars.autoPay,
+ "SoldOut": vars.soldOut,
+ "SendToOptionSystem": vars.optionSystem,
+ "SendToWarrantySystem": vars.warrantySys,
+ "Action": vars.action
+}]]]></http:headers>
+					<http:response-validator>
+						<http:success-status-code-validator values="200,500" />
+					</http:response-validator>
+			
+</http:request>
+						<error-handler >
+					<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="f7c41048-42fe-45c2-8468-cc0d5f354675" type="HTTP:CONNECTIVITY, HTTP:NOT_FOUND">
+						<set-variable value="Connectivity" doc:name="Issue" doc:id="1616ebf7-ba7c-491f-abc6-c894ff4dc894" variableName="issue"/>
+						<logger level="INFO" doc:name="Logger" doc:id="322fd5e9-b9d6-4dae-86c3-c5d76ec2d61d" message="Retrying Due to Connectivity Issue"/>
+						<set-variable value="#[error.description]" doc:name="Store Error" doc:id="4e16174f-3c86-4591-8cda-be473886cb0c" variableName="varErr" />
+					</on-error-propagate>
+					<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="804dae6d-d70d-4c99-ad0f-2ec7ae76f129" type="HTTP:BAD_GATEWAY, HTTP:BAD_REQUEST, HTTP:CLIENT_SECURITY, HTTP:FORBIDDEN, HTTP:INTERNAL_SERVER_ERROR, HTTP:METHOD_NOT_ALLOWED, HTTP:NOT_ACCEPTABLE, HTTP:NOT_FOUND, HTTP:PARSING, HTTP:RETRY_EXHAUSTED, HTTP:SECURITY, HTTP:SERVICE_UNAVAILABLE, HTTP:TIMEOUT, HTTP:TOO_MANY_REQUESTS, HTTP:UNAUTHORIZED, HTTP:UNSUPPORTED_MEDIA_TYPE, EXPRESSION, STREAM_MAXIMUM_SIZE_EXCEEDED">
+						<set-variable value="ANY" doc:name="Issue" doc:id="3d401ed1-d87c-4bcc-b12e-2c8fa3d84ee7" variableName="issue" />
+						<set-variable value="#[error.description]" doc:name="Store Error" doc:id="185c80eb-a562-43d2-b721-43597811ee62" variableName="varErr" />
+						<flow-ref doc:name="Send-Alert-to-Support-Team" doc:id="7d0c2a22-fdf2-49bb-85e2-560b293d6274" name="Send-Alert-to-Support-Team"/>
+					</on-error-continue>
+				</error-handler>
+			</try>
+		</until-successful>
+		<choice doc:name="Choice" doc:id="75d496c4-eb7d-46e0-b282-0e47dddd47ef" >
+			<when expression='#[(vars.varErr != null) and (vars.issue == "Connectivity")]'>
+				<raise-error doc:name="Raise error" doc:id="63f72fdc-265d-4da3-bc60-c3d652d6a977" type="HP24ERR:MISCELLANEOUS" description="Error Occured during Calling target system" />
+			</when>
+		
+</choice>
+		
+			
+			<logger level="INFO" doc:name="Logger" doc:id="1ad4c57f-423e-4756-a725-e9ab8704c60f" message='#[vars.targetAPIResponse]'/>
+		</parallel-foreach>
+	</sub-flow>
+	<sub-flow name="Call-Route-API-Flow" doc:id="8b0b579c-1481-4764-9535-dc0736d80871" >
+		<logger level="INFO" doc:name="Logger" doc:id="2d7c9162-2dcd-43fb-bfe5-bf41d795f415" message="#[output application/json&#10;&#10;fun process_name(x) = &#10;&#10;	if(x=='PLAN' or x=='Community')&#10;&#10;		&quot;PlanElevationMaintain&quot;&#10;&#10;	else if(x == 'PLAN-ENV')&#10;&#10;		&quot;PlanMaintain&quot;&#10;&#10;	else&#10;&#10;		&quot;&quot;&#10;&#10;---&#10;&#10;{&quot;Input to Route API&quot;:{&#10;&#10;	&quot;process_name&quot; : process_name(vars.fromFlow),&#10;&#10;	&quot;source_system&quot; : &quot;EOne&quot;,&#10;&#10;	&quot;routing_code&quot; : vars.routingCode,&#10;&#10;	&#10;&#10;}&#10;}]"/>
+		<until-successful maxRetries="${reconnection.attempts}" doc:name="Retry three times Until Successful" doc:id="ccdf3e54-4c31-4fb3-bb75-e58775681749" millisBetweenRetries="${reconnection.frequency}">
+			<try doc:name="Try" doc:id="b4d28203-5b38-4432-af60-d76fa3b8b671" >
+						<http:request method="GET" doc:name="Get Targets From Route API" doc:id="49bbc603-b453-4398-9013-fb6e5d2555bc" config-ref="Route_API_HTTP_Request_configuration" path="${route.path}">
+						<http:body><![CDATA[#[null]]]></http:body>
+						<http:headers><![CDATA[#[output application/java
+---
+{
+	"client_secret" : p('secure::route.client_secret'),
+	"client_id" : p('secure::route.client_id')
+}]]]></http:headers>
+				<http:query-params><![CDATA[#[output application/java
+fun process_name(x) = 
+	if(x=='PLAN' or x=='Community')
+		"PlanElevationMaintain"
+	else if(x == 'PLAN_ENV')
+		"PlanMaintain"
+	else
+		""
+---
+{
+	"process_name" : process_name(vars.fromFlow),
+	"source_system" : "EOne",
+	"routing_code" : vars.routingCode,
+	
+}]]]></http:query-params>
+					</http:request>
+						<error-handler >
+					<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="df101cc1-2d2f-4b05-b205-1e91d99c20ed" type="HTTP:CONNECTIVITY, HTTP:NOT_FOUND">
+						<set-variable value="Connectivity" doc:name="Issue" doc:id="ee0f220c-3ded-41f4-a548-6510183d909d" variableName="issue"/>
+						<logger level="INFO" doc:name="Logger" doc:id="71d87e37-c0c4-4517-bdee-44a389ed03dd" message="Retrying Due to Connectivity Issue"/>
+						<set-variable value="#[error.description]" doc:name="Store Error" doc:id="8e30dea4-4d6d-467e-8af0-5e708fce56a4" variableName="varErr" />
+					</on-error-propagate>
+					<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="6ad37d1e-104b-45cf-8378-2dd97ab1d237" type="HTTP:BAD_GATEWAY, HTTP:BAD_REQUEST, HTTP:CLIENT_SECURITY, HTTP:FORBIDDEN, HTTP:INTERNAL_SERVER_ERROR, HTTP:METHOD_NOT_ALLOWED, HTTP:NOT_ACCEPTABLE, HTTP:NOT_FOUND, HTTP:PARSING, HTTP:RETRY_EXHAUSTED, HTTP:SECURITY, HTTP:SERVICE_UNAVAILABLE, HTTP:TIMEOUT, HTTP:TOO_MANY_REQUESTS, HTTP:UNAUTHORIZED, HTTP:UNSUPPORTED_MEDIA_TYPE, EXPRESSION, STREAM_MAXIMUM_SIZE_EXCEEDED">
+						<set-variable value="ANY" doc:name="Issue" doc:id="dad5e7df-6189-4b3e-aae2-94b7fda48b7d" variableName="issue" />
+						<set-variable value="#[error.description]" doc:name="Store Error" doc:id="0c066754-30c4-4e0d-943e-2994a8339399" variableName="varErr" />
+						<flow-ref doc:name="Send-Alert-to-Support-Team" doc:id="f2aa0f8e-0cf3-4cf3-ad35-7819da509adb" name="Send-Alert-to-Support-Team"/>
+					</on-error-continue>
+				</error-handler>
+			</try>
+		</until-successful>
+		<choice doc:name="Choice" doc:id="87514c1f-3d43-484d-9427-d4a2d02a165f" >
+			<when expression='#[(vars.varErr != null) and (vars.issue == "Connectivity")]'>
+				<raise-error doc:name="Raise error" doc:id="82f7ea4e-99f3-489f-a92a-80a0861aa51b" type="HP24ERR:MISCELLANEOUS" description="Error Occured during Calling route API" />
+			</when>
+		
+</choice>
+		
+		
+		
+		<logger level="INFO" doc:name="Logger" doc:id="f6800a77-039c-4db1-978c-b1ccacb0727c" message='#[{"Response from Route API":payload}]'/>
+	</sub-flow>
+	</mule>

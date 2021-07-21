@@ -1,0 +1,630 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd">
+		<file:config name="File_Config" doc:name="File Config" doc:id="df6d4249-3e0d-4649-a2f9-3b662aba41bb" >
+		<file:connection workingDir="C:\Users\rohitsingh\Desktop\New folder" />
+	</file:config>
+	<sub-flow name="Get-PLAN-Details" doc:id="70ea2f00-89d9-4f9c-9ef2-39dce42dad8b" >
+	<choice doc:name="Check if E1ACTN = D" doc:id="f75926a5-65ba-4fae-b89c-17089f754342">
+			<when expression="#[vars.action == 'D']">
+				<logger level="INFO" doc:name="Logger" doc:id="ac25ad0d-19ee-483e-bdcd-57bdfe56cfb2" message="E1ACTN = D "/>
+						<ee:transform doc:name="Transform Payload to Cononical Form" doc:id="797aa046-2302-4208-9aa7-ea4a6e320a70">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+if(vars.fromFlow == 'PLAN' or vars.fromFlow == 'Community')
+{
+	TransmissionHeader:{
+	TransmissionDateTime: now(),
+	CompanyCode: vars.routingCode,
+	HomeBuilderStatusFlags:{
+		SendToCPS: vars.sendToCPS,
+		AutoPay: vars.autoPay,
+		SoldOut:vars.soldOut,
+		SendToOptionSystem: vars.optionSystem,
+		SendToWarrantySystem: vars.warrantySys,
+	}
+	},
+	PlanElevation:
+	{
+		HomeBuilderAreaID: "",
+		Community: trim((vars.businessKeys splitBy('|'))[0]),
+		Phase: trim((vars.businessKeys splitBy('|'))[1]),
+		PlanNumber: trim((vars.businessKeys splitBy('|'))[2]),
+		Elevation: trim((vars.businessKeys splitBy('|'))[3]),
+	},
+	Action:vars.action
+	}
+else if(vars.fromFlow == 'PLAN_ENV')
+{
+	TransmissionHeader:{
+	TransmissionDateTime: now(),
+	CompanyCode: vars.routingCode,
+	HomeBuilderStatusFlags:{
+		SendToCPS: vars.sendToCPS,
+		AutoPay: vars.autoPay,
+		SoldOut:vars.soldOut,
+		SendToOptionSystem: vars.optionSystem,
+		SendToWarrantySystem: vars.warrantySys,
+	}
+	},
+	PlanElevation:{
+			HomeBuilderAreaID: trim((vars.businessKeys splitBy('|'))[0]),
+			Community: trim((vars.businessKeys splitBy('|'))[1]),
+			Phase: "",
+			PlanNumber: trim((vars.businessKeys splitBy('|'))[2]),
+			Elevation: ""
+		},
+	Action:vars.action
+	}
+	
+else
+	{}]]></ee:set-payload>
+					</ee:message>
+									<ee:variables>
+								<ee:set-variable variableName="targetPayload" ><![CDATA[%dw 2.0
+output application/json
+---
+if(vars.fromFlow == 'PLAN' or vars.fromFlow == 'Community')
+{
+	TransmissionHeader:{
+	TransmissionDateTime: now(),
+	CompanyCode: vars.routingCode,
+	HomeBuilderStatusFlags:{
+		SendToCPS: vars.sendToCPS,
+		AutoPay: vars.autoPay,
+		SoldOut:vars.soldOut,
+		SendToOptionSystem: vars.optionSystem,
+		SendToWarrantySystem: vars.warrantySys,
+	}
+	},
+	PlanElevation:
+	{
+		HomeBuilderAreaID: "",
+		Community: trim((vars.businessKeys splitBy('|'))[0]),
+		Phase: trim((vars.businessKeys splitBy('|'))[1]),
+		PlanNumber: trim((vars.businessKeys splitBy('|'))[2]),
+		Elevation: trim((vars.businessKeys splitBy('|'))[3]),
+	},
+	Action:vars.action
+	}
+else if(vars.fromFlow == 'PLAN_ENV')
+{
+	TransmissionHeader:{
+	TransmissionDateTime: now(),
+	CompanyCode: vars.routingCode,
+	HomeBuilderStatusFlags:{
+		SendToCPS: vars.sendToCPS,
+		AutoPay: vars.autoPay,
+		SoldOut:vars.soldOut,
+		SendToOptionSystem: vars.optionSystem,
+		SendToWarrantySystem: vars.warrantySys,
+	}
+	},
+	PlanElevation:{
+			HomeBuilderAreaID: trim((vars.businessKeys splitBy('|'))[0]),
+			Community: trim((vars.businessKeys splitBy('|'))[1]),
+			Phase: "",
+			PlanNumber: trim((vars.businessKeys splitBy('|'))[2]),
+			Elevation: ""
+		},
+	Action:vars.action
+	}
+else
+	{}]]></ee:set-variable>
+									</ee:variables>
+				
+</ee:transform>
+						<logger level="INFO" doc:name="Logger" doc:id="88aa3120-c7f1-4eb1-a937-caecdb20076f" message="#[payload]"/>
+						<flow-ref doc:name="Call-Route-API-Flow" doc:id="d718519d-3639-4fa9-a524-7a19d5fa844f" name="Call-Route-API-Flow" target="routeAPIResponse"/>
+						<flow-ref doc:name="Call-Traget-System" doc:id="2ec29dd2-3e00-4477-944e-82646d5af3d6" name="Call-Traget-System"/>
+			</when>
+					<otherwise>
+						<logger level="INFO" doc:name="Logger" doc:id="464fa1e0-f0a9-4b75-8f01-88a83cd33870" message="Input to EOne System API"/>
+						<ee:transform doc:name="Transform Message" doc:id="6778bedf-5273-4c1a-80ad-93e2ca9e510c">
+							<ee:message>
+							</ee:message>
+							<ee:variables >
+								<ee:set-variable variableName="headers" ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"businessKeys" : vars.businessKeys,
+	"companyCode" : vars.routingCode,
+	"sourceSystem" : "EOne"
+}]]></ee:set-variable>
+							</ee:variables>
+						</ee:transform>
+						<logger level="INFO" doc:name="Logger" doc:id="5f406676-8425-4931-8eba-0748dc758588" message="#[vars.headers]"/>
+								<until-successful maxRetries="${reconnection.attempts}" doc:name="Retry three times Until Successful" doc:id="f48e6505-dbda-4ae6-a6fe-76a5cf88e241" millisBetweenRetries="${reconnection.frequency}">
+			<try doc:name="Try" doc:id="0c4de485-9109-445d-b93f-e9286565b292" >
+								<http:request method="GET" doc:name="Call E1 System API" doc:id="b60aeddf-efc2-4747-9b78-ece80d298116" config-ref="E1_System_API_HTTP_Request_configuration" path="${e1.sysapi.planPath}" target="e1Response" responseTimeout="300000">
+					<http:body><![CDATA[#[null]]]></http:body>
+					<http:headers><![CDATA[#[output application/java
+---
+{
+	"client_secret" : Mule::p('secure::e1.client_secret'),
+	"client_id" : Mule::p('secure::e1.client_id'),
+	"CompanyCode": vars.routingCode,
+	"TransmissionUser": vars.transmissionUser,
+	"TransmissionDateTime": now()
+	
+}]]]></http:headers>
+					<http:query-params><![CDATA[#[output application/java
+fun eventType(x) = 
+	if(x=='PLAN')
+		"PLAN"
+	else if(x == 'PLAN_ENV')
+		"PLAN_ENV"
+	else if(x == 'Community')
+		"PLAN"
+	else
+		""
+		
+---
+{
+	//"companyCode" : vars.routingCode,
+	"businessKeys" : vars.businessKeys,
+	"eventType" : eventType(vars.fromFlow)
+}]]]></http:query-params>
+				</http:request>
+						<error-handler >
+					<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="0880070e-fda0-45fa-aa6d-a5d5626b13c5" type="HTTP:CONNECTIVITY, HTTP:NOT_FOUND">
+						<set-variable value="Connectivity" doc:name="Issue" doc:id="86b2fe8a-eada-47b0-a909-dd4ea9400a24" variableName="issue"/>
+						<logger level="INFO" doc:name="Logger" doc:id="a84db9ce-2e8d-4bac-80db-8ccb8350b07d" message="Retrying Due to Connectivity Issue"/>
+						<set-variable value="#[error.description]" doc:name="Store Error" doc:id="89900185-9dff-49de-a797-01664a61a50e" variableName="varErr" />
+					</on-error-propagate>
+					<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="0862e1f5-f21c-4169-b9a4-422b5259f62c" type="HTTP:BAD_GATEWAY, HTTP:BAD_REQUEST, HTTP:CLIENT_SECURITY, HTTP:FORBIDDEN, HTTP:INTERNAL_SERVER_ERROR, HTTP:METHOD_NOT_ALLOWED, HTTP:NOT_ACCEPTABLE, HTTP:NOT_FOUND, HTTP:PARSING, HTTP:RETRY_EXHAUSTED, HTTP:SECURITY, HTTP:SERVICE_UNAVAILABLE, HTTP:TIMEOUT, HTTP:TOO_MANY_REQUESTS, HTTP:UNAUTHORIZED, HTTP:UNSUPPORTED_MEDIA_TYPE, EXPRESSION, STREAM_MAXIMUM_SIZE_EXCEEDED">
+						<set-variable value="ANY" doc:name="Issue" doc:id="57338bbc-bace-4831-a097-3135c43dfdce" variableName="issue" />
+						<set-variable value="#[error.description]" doc:name="Store Error" doc:id="040fece5-143b-45c6-a27d-a49286d601f1" variableName="varErr" />
+						<flow-ref doc:name="Send-Alert-to-Support-Team" doc:id="e2cb106a-45f3-4f8d-b589-0c9003de5110" name="Send-Alert-to-Support-Team"/>
+					</on-error-continue>
+				</error-handler>
+			</try>
+		</until-successful>
+		<choice doc:name="Choice" doc:id="cb98f849-a3e2-4055-80f6-5b84665cdde8" >
+			<when expression='#[(vars.varErr != null) and (vars.issue == "Connectivity")]'>
+				<raise-error doc:name="Raise error" doc:id="76ca7180-987a-45bb-be79-abdd8c448f77" type="HP24ERR:MISCELLANEOUS" description="Error Occured during Performing the E1 Database operations" />
+			</when>
+		
+</choice>
+						<!-- <ee:transform doc:name="e1Response" doc:id="6e13cfa0-e714-482c-b761-d97c18b0dfb6"> 
+							<ee:message>
+								<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+-&#45;&#45;
+{
+}]]></ee:set-payload>
+							</ee:message>
+							<ee:variables >
+								<ee:set-variable variableName="e1Response" ><![CDATA[%dw 2.0
+output application/json
+-&#45;&#45;
+if(vars.fromFlow == "PLAN")
+{
+  "PlanElevationPublishResponse": {
+    "PlanElevation": {
+      "Header": {
+        "GlobalReference": {
+          "System": null,
+          "SystemReferenceId": null
+        },
+        "Remarks": [
+          {
+            "RemarkText": null,
+            "RemarkType": null,
+            "RemarkSeqNumber": null
+          }
+        ]
+      },
+      "Community": "11140000",
+      "Phase": "000",
+      "PlanNumber": "03BE",
+      "Elevation": "96",
+      "HomeBuilderAreaID": "WIN",
+      "AmountBasePrice": "579900",
+      "AmountBasePrevious": "574900",
+      "SalesPriceEffectiveDate": "2014-05-02T00:00:00-07:00",
+      "ExpirationDate": null,
+      "CostCodeTemplate": "WHIMASTERCC",
+      "ScheduleTemplate": "WMT103",
+      "Description": [
+        {
+          "Desc": "Bradley",
+          "DescType": null,
+          "DescSeqNumber": 1
+        },
+        {
+          "Desc": null,
+          "DescType": null,
+          "DescSeqNumber": 2
+        },
+        {
+          "Desc": "Village Collection",
+          "DescType": null,
+          "DescSeqNumber": 3
+        }
+      ],
+      "PlanMasterProductType": {
+        "Value": "SFD",
+        "Description": "Single Family Detached"
+      },
+      "PlanMasterProductGroup": {
+        "Value": null,
+        "Description": null
+      },
+      "SquareFeet": "3399.50",
+      "PlanMix": "0",
+      "PlanMixRelease": "0",
+      "EstimatedDiscountIncentive": [
+        {
+          "EstimatedDiscIncentiveValue": "0.00",
+          "EstimatedDiscIncentiveSeqNum": 1
+        },
+        {
+          "EstimatedDiscIncentiveValue": "0.00",
+          "EstimatedDiscIncentiveSeqNum": 2
+        },
+        {
+          "EstimatedDiscIncentiveValue": "0.00",
+          "EstimatedDiscIncentiveSeqNum": 3
+        }
+      ],
+      "AverageOptionMargin": [
+        {
+          "AverageOptionMarginValue": "6.0",
+          "AverageOptionMarginSeqNum": 1
+        },
+        {
+          "AverageOptionMarginValue": "0.0",
+          "AverageOptionMarginSeqNum": 2
+        },
+        {
+          "AverageOptionMarginValue": "0.0",
+          "AverageOptionMarginSeqNum": 3
+        },
+        {
+          "AverageOptionMarginValue": "0.0",
+          "AverageOptionMarginSeqNum": 4
+        },
+        {
+          "AverageOptionMarginValue": "0.0",
+          "AverageOptionMarginSeqNum": 5
+        }
+      ],
+      "EstimatedOptionRevenue": [
+        {
+          "EstimatedOptionRevenueValue": "0.00",
+          "EstimatedOptionRevenueSeqNum": 1
+        },
+        {
+          "EstimatedOptionRevenueValue": "0.00",
+          "EstimatedOptionRevenueSeqNum": 2
+        },
+        {
+          "EstimatedOptionRevenueValue": "0.00",
+          "EstimatedOptionRevenueSeqNum": 3
+        },
+        {
+          "EstimatedOptionRevenueValue": "0.00",
+          "EstimatedOptionRevenueSeqNum": 4
+        },
+        {
+          "EstimatedOptionRevenueValue": "0.00",
+          "EstimatedOptionRevenueSeqNum": 5
+        }
+      ],
+      "AmountEstimatedOptionIncentive": "0.00",
+      "EstimatedPlanCost": "0.00",
+      "AverageOtherCost": [
+        {
+          "AverageOtherCostValue": "0.00",
+          "AverageOtherCostSeqNum": 1
+        },
+        {
+          "AverageOtherCostValue": "0.00",
+          "AverageOtherCostSeqNum": 2
+        },
+        {
+          "AverageOtherCostValue": "0.00",
+          "AverageOtherCostSeqNum": 3
+        },
+        {
+          "AverageOtherCostValue": "0.00",
+          "AverageOtherCostSeqNum": 4
+        },
+        {
+          "AverageOtherCostValue": "0.00",
+          "AverageOtherCostSeqNum": 5
+        },
+        {
+          "AverageOtherCostValue": "0.00",
+          "AverageOtherCostSeqNum": 6
+        },
+        {
+          "AverageOtherCostValue": "0.00",
+          "AverageOtherCostSeqNum": 7
+        },
+        {
+          "AverageOtherCostValue": "0.00",
+          "AverageOtherCostSeqNum": 8
+        },
+        {
+          "AverageOtherCostValue": "0.00",
+          "AverageOtherCostSeqNum": 9
+        },
+        {
+          "AverageOtherCostValue": "0.00",
+          "AverageOtherCostSeqNum": 10
+        }
+      ],
+      "EstimatedWeeklySales": "0.00",
+      "SpecLevel": {
+        "Value": null,
+        "Description": null
+      },
+      "HeatType": {
+        "Value": null,
+        "Description": null
+      },
+      "PlanPack": {
+        "Value": null,
+        "Description": null
+      },
+      "GarageSize": {
+        "Value": "2",
+        "Description": "Two Car Garage"
+      },
+      "CategoryCode": [
+        {
+          "Value": "2.5",
+          "Description": "Two and Half Bath",
+          "SequenceNumber": 5,
+          "Type": null
+        },
+        {
+          "Value": "4",
+          "Description": "Four Bedrooms",
+          "SequenceNumber": 6,
+          "Type": null
+        },
+        {
+          "Value": null,
+          "Description": null,
+          "SequenceNumber": 7,
+          "Type": null
+        },
+        {
+          "Value": null,
+          "Description": null,
+          "SequenceNumber": 8,
+          "Type": null
+        },
+        {
+          "Value": null,
+          "Description": null,
+          "SequenceNumber": 9,
+          "Type": null
+        },
+        {
+          "Value": null,
+          "Description": null,
+          "SequenceNumber": 10,
+          "Type": null
+        },
+        {
+          "Value": null,
+          "Description": null,
+          "SequenceNumber": 11,
+          "Type": null
+        },
+        {
+          "Value": null,
+          "Description": null,
+          "SequenceNumber": 12,
+          "Type": null
+        },
+        {
+          "Value": null,
+          "Description": null,
+          "SequenceNumber": 13,
+          "Type": null
+        },
+        {
+          "Value": null,
+          "Description": null,
+          "SequenceNumber": 14,
+          "Type": null
+        },
+        {
+          "Value": null,
+          "Description": null,
+          "SequenceNumber": 15,
+          "Type": null
+        }
+      ],
+      "FoundationPlanRise": null,
+      "FoundationPackageRelease": null,
+      "ActualCompletion": null,
+      "UserDate": [
+        {
+          "UserDateValue": null,
+          "UserDateType": null,
+          "UserDateSeqNumber": 1
+        },
+        {
+          "UserDateValue": null,
+          "UserDateType": null,
+          "UserDateSeqNumber": 2
+        },
+        {
+          "UserDateValue": null,
+          "UserDateType": null,
+          "UserDateSeqNumber": 3
+        },
+        {
+          "UserDateValue": null,
+          "UserDateType": null,
+          "UserDateSeqNumber": 4
+        },
+        {
+          "UserDateValue": null,
+          "UserDateType": null,
+          "UserDateSeqNumber": 5
+        }
+      ],
+      "HomeBuilderStatusCode": [
+        {
+          "HomeBuilderStatusCodeValue": null,
+          "HomeBuilderStatusCodeDescription": null,
+          "HomeBuilderStatusCodeSeqNumber": 1
+        },
+        {
+          "HomeBuilderStatusCodeValue": null,
+          "HomeBuilderStatusCodeDescription": null,
+          "HomeBuilderStatusCodeSeqNumber": 2
+        },
+        {
+          "HomeBuilderStatusCodeValue": null,
+          "HomeBuilderStatusCodeDescription": null,
+          "HomeBuilderStatusCodeSeqNumber": 3
+        },
+        {
+          "HomeBuilderStatusCodeValue": null,
+          "HomeBuilderStatusCodeDescription": null,
+          "HomeBuilderStatusCodeSeqNumber": 4
+        },
+        {
+          "HomeBuilderStatusCodeValue": null,
+          "HomeBuilderStatusCodeDescription": null,
+          "HomeBuilderStatusCodeSeqNumber": 5
+        }
+      ]
+    },
+    "TransmissionAck": {
+      "TransmissionAckStatus": "s",
+      "TransmissionReport": {
+        "TransmissionSummary": null,
+        "IntegrationLogMessage": [
+          {
+            "SystemName": null,
+            "MessageClass": null,
+            "MessageCode": null,
+            "MessageText": null,
+            "TimeStamp": null,
+            "Refnum": null
+          }
+        ]
+      }
+    }
+  }
+}
+else
+	{
+  "PlanElevationPublishResponse": {
+    "PlanElevation": {
+      "Community": "22510000",
+      "PlanNumber": "04HW",
+      "HomeBuilderAreaID": "HOU",
+      "Description": [
+        {
+          "Desc": "04HW-S280-DL",
+          "DescSeqNumber": 1
+        }
+      ]
+    }
+  }
+}]]></ee:set-variable>
+							</ee:variables>
+						</ee:transform>-->
+						<logger level="INFO" doc:name="Logger" doc:id="b1bf88c7-ab4e-4b16-977c-7abc6396ab72" message='#[vars.e1Response]'/>
+						<choice doc:name="Check If Transmission Status != E" doc:id="e5a890fd-16ac-43d0-ad29-152a996ca596">
+					<when expression="#[upper(vars.e1Response.TransmissionAck.TransmissionAckStatus) != 'E']">
+								<ee:transform doc:name="Transform Message" doc:id="329eb11e-b67a-4da5-9c6f-b899349109ad">
+							<ee:message>
+								<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+TransmissionHeader:{
+	TransmissionDateTime: now(),
+	CompanyCode: vars.routingCode,
+	HomeBuilderStatusFlags:{
+		SendToCPS: vars.sendToCPS,
+		AutoPay: vars.autoPay,
+		SoldOut:vars.soldOut,
+		SendToOptionSystem: vars.optionSystem,
+		SendToWarrantySystem: vars.warrantySys,
+	}
+},
+PlanElevation:vars.e1Response.PlanElevationPublishResponse.PlanElevation,	
+"Action": trim(vars.action) as String,
+}]]></ee:set-payload>
+							</ee:message>
+							<ee:variables>
+								<ee:set-variable variableName="targetPayload"><![CDATA[%dw 2.0
+output application/json
+---
+{
+TransmissionHeader:{
+	TransmissionDateTime: now(),
+	CompanyCode: vars.routingCode,
+	HomeBuilderStatusFlags:{
+		SendToCPS: vars.sendToCPS,
+		AutoPay: vars.autoPay,
+		SoldOut:vars.soldOut,
+		SendToOptionSystem: vars.optionSystem,
+		SendToWarrantySystem: vars.warrantySys,
+	}
+},
+PlanElevation:vars.e1Response.PlanElevationPublishResponse.PlanElevation,	
+"Action": trim(vars.action) as String,
+}]]></ee:set-variable>
+							</ee:variables>
+						</ee:transform>
+								<logger level="INFO" doc:name="Logger" doc:id="bae63d45-1320-4995-98d9-651f03f3f30e" message="#[vars.targetPayload]"/>
+								<flow-ref doc:name="Call-Route-API-Flow" doc:id="8366f84a-df5b-4682-938d-c4044cf91ee3" name="Call-Route-API-Flow" target="routeAPIResponse"/>
+								<flow-ref doc:name="Call-Traget-System" doc:id="6a8ca5f5-b266-49af-ad27-a5189d5ff718" name="Call-Traget-System"/>
+					
+</when>
+							<otherwise>
+								<ee:transform doc:name="Tranformation to TransmitionAck" doc:id="eb9ee267-dec8-46d9-8ede-aa266b5eda08">
+							<ee:message>
+								<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+TransmissionAck:
+{
+    TransmissionAckStatus:'E',
+    TransmissionReport:
+    {
+        TransmissionSummary: vars.e1Response.TransmissionAck.TransmissionReport.TransmissionSummary,//'PBS_AddressBookManager service returned error message.',
+        IntegrationLogMessage:
+        {
+            MessageText: vars.e1Response.TransmissionAck.TransmissionReport.IntegrationLogMessage.MessageText,//trim(payload.body.getAddressBookResponse.integrationErrors.transmissionAck.transmissionMessage.transmissionMessageDetailList.messageText01[0])
+        }
+    }
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+								<logger level="INFO" doc:name="Logger" doc:id="eba3a8d9-25bd-40cb-86ad-d02cfe6bf0f9" message="#[payload]"/>
+						<raise-error doc:name="Raise error" doc:id="685eebb6-5ce1-418b-8f0f-f64ea8dd2a6c" type="HP24ERR:MISCELLANEOUS" description="Recieved transmission ack status as E"/>
+					
+
+</otherwise>
+				</choice>
+			
+</otherwise>
+		</choice>
+	
+
+	</sub-flow>
+	</mule>

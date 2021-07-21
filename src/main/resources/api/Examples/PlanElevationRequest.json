@@ -1,0 +1,22 @@
+{
+  "PlanElevationRequest": {
+    "@xmlns": "http://www.tph1.com",
+    "TransmissionHeader": {
+      "TransmissionDateTime": "1975-01-14T15:53:00.33",
+      "OriginatingSystem": "string",
+      "TransmissionUser": "string",
+      "CompanyCode": "string",
+      "TransmissionID": "3196",
+      "HomeBuilderStatusFlags": {
+        "SendToCPS": "string",
+        "AutoPay": "string",
+        "SoldOut": "string",
+        "SendToOptionSystem": "string",
+        "SendToWarrantySystem": "string"
+      }
+    },
+    "BusinessKey": "string",
+    "EventType": "string",
+    "Action": "DELETE"
+  }
+}

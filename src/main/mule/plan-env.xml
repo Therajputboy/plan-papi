@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd 
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd">
+		<flow name="Plan-env-Publish" doc:id="22f60850-2c40-4125-8e46-c23f67928942">
+		<scheduler doc:name="Scheduler Runs Every 15 Seconds" doc:id="fb3e383f-51ec-47aa-afc7-922274a4795a" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="${scheduler.fixedFrequency}" timeUnit="SECONDS" startDelay="${scheduler.delay}"/>
+			
+</scheduling-strategy>
+		</scheduler>
+		<choice doc:name="Choice" doc:id="55ab87e7-af74-473d-b49e-8f6a24dcf1b4" >
+			<when expression="#[%dw 2.0&#10;output application/json&#10;---&#10;if(((now() as Time) &gt;= (&quot;00:00:00&quot;)) and (((now() as Time) &lt; (&quot;00:30:00&quot;))))&#10;&#10;((((&quot;00:00:00&quot; as Time) &lt;= ((now() as Time {format:&quot;HH:mm:ss&quot;}))) and (((now() as Time {format:&quot;HH:mm:ss&quot;})) &lt; (&quot;00:30:00&quot; as Time)) and (['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'] contains (now() as String {format: &quot;EEEE&quot;})))) &#10;&#10;else&#10;&#10;((((&quot;22:30:00&quot; as Time) &lt;= ((now() as Time {format:&quot;HH:mm:ss&quot;}))) and (((now() as Time {format:&quot;HH:mm:ss&quot;})) &lt; (&quot;23:59:59&quot; as Time )) and (['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday'] contains (now() as String {format: &quot;EEEE&quot;}))) &#10;or (((&quot;19:30:00&quot; as Time) &lt;= ((now() as Time {format:&quot;HH:mm:ss&quot;}))) and (((now() as Time {format:&quot;HH:mm:ss&quot;})) &lt; (&quot;23:59:59&quot; as Time)) and ((now() as String {format: &quot;EEEE&quot;}) == &quot;Saturday&quot;)))]">
+				<logger level="INFO" doc:name="Logger" doc:id="6b3bf014-b265-47dd-a329-4b863b00a462" message='"Currently server is not available"'/>
+			</when>
+			<otherwise >
+						<until-successful maxRetries="${reconnection.attempts}" doc:name="Retry  3 Times Until Successful" doc:id="6052565d-431e-44ed-b2ac-77b55414624e" millisBetweenRetries="${reconnection.frequency}">
+			<try doc:name="Try" doc:id="377e000b-24c1-40a6-a02e-f7c6aab935e4" >
+				<db:select doc:name="Get Events From E1 Database" doc:id="905d38a5-b5e8-4af8-ae23-1644e6879663" config-ref="E1_Event_Table_Database_Config">
+			<db:sql><![CDATA[SELECT top 10 E1GS2A, E1VALU, E1UKID, E1ACTN, E1AA20, E1GPSP, E1LL, E1GS1A, E1GS1B, E1HBST1, E1HBST2, E1HBST3, E1HBST4, E1HBST5, E1CRTU, E1CRTJ, E1CRTT,
+ E1WRKSTNID, E1HBOPID, E1UPMB, E1UPMJ, E1UPMT, E1JOBN, E1PID 
+ FROM dbo.V57MTE01 
+ WHERE ((E1GS2A = 'PLAN_ENV') AND (E1GPSP = '0'))]]></db:sql>
+		</db:select>
+				<ee:transform doc:name="Transform Payload to JSON" doc:id="6f4a980f-510f-4dd5-a5a6-2a71d03bc9fc">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="count" ><![CDATA[%dw 2.0
+output application/json
+---
+0 as Number]]></ee:set-variable>
+						<ee:set-variable variableName="env" ><![CDATA[%dw 2.0
+output application/json
+---
+p('Environment')]]></ee:set-variable>
+					</ee:variables>
+		</ee:transform>
+				<logger level="INFO" doc:name="Logger" doc:id="ec3ab9b9-dc48-4e53-9379-e585bb58d416" message="Events from E1 Table"/>
+				<logger level="INFO" doc:name="Logger" doc:id="c3619259-a8ed-4d5a-bdd7-8705e38a1dc9" message="#[payload]"/>
+				<set-variable value="#[payload]" doc:name="Store Event " doc:id="a3131ee2-74c4-4a7c-82ef-0b0ec02856a8" variableName="event" />
+				<db:bulk-update doc:name="Bulk Update the E1GPSP = 1 in E1 Database" doc:id="8dd6c7df-3c6f-4f27-842c-2b1bf2c397a1" config-ref="E1_Event_Table_Database_Config">
+			<db:bulk-input-parameters><![CDATA[#[payload map () ->
+{
+    'e1ukid': $.E1UKID,
+	'e1gs2a': $.E1GS2A,
+	'e1valu': $.E1VALU
+}]]]></db:bulk-input-parameters>
+			<db:sql><![CDATA[UPDATE dbo.V57MTE01 SET E1GPSP = '1' WHERE E1UKID = :e1ukid AND E1GS2A = :e1gs2a AND E1VALU = :e1valu]]></db:sql>
+		</db:bulk-update>
+				<logger level="INFO" doc:name="Logger" doc:id="fad40288-7c97-4553-ac25-96ffddeff316" message="Updated the E1GPSP = 1" />
+						<error-handler >
+					<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="39f6b460-48ca-4642-ad78-cb83b38edc98" type="DB:CONNECTIVITY">
+						<logger level="INFO" doc:name="Retrying" doc:id="ba803971-4672-43bb-8ee1-ffdb297b417e" message="Retrying to Connect with E1 Database due to connectivity Issue"/>
+						<set-variable value="#[error.description]" doc:name="Store Error" doc:id="ad8d03cb-ae96-47c3-9a24-413ed2d79495" variableName="varErr" />
+					</on-error-propagate>
+					<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="0ae77e87-8e80-46f5-8b2e-7b302172488b" type="DB:BAD_SQL_SYNTAX, DB:QUERY_EXECUTION, EXPRESSION, STREAM_MAXIMUM_SIZE_EXCEEDED">
+						<set-variable value="#[error.description]" doc:name="Store Error" doc:id="1c71e43d-70df-40ae-8bf4-330724655b65" variableName="varErr" />
+						<logger level="INFO" doc:name="Logger" doc:id="59c367da-1ada-4765-89d8-afdc6a766347" message="#[vars.varErr]"/>
+					</on-error-continue>
+				</error-handler>
+			</try>
+		</until-successful>
+		<choice doc:name="Choice" doc:id="87d7133c-2fa4-4c43-aa60-315968f11d7e" >
+			<when expression="#[vars.varErr != null]">
+				<raise-error doc:name="Raise error" doc:id="c7026f02-9008-4a57-810f-f477ad91418f" type="HP24ERR:MISCELLANEOUS" description="Error Occured during Performing the E1 Database operations"/>
+			</when>
+		</choice>
+		<set-variable value="#[0 as Number]" doc:name="Count" doc:id="d3760417-b437-483b-8af0-7c550c641650" variableName="count" />
+		<parallel-foreach doc:name="Parallel For Each" doc:id="06541972-6223-4124-864a-40d2e5c9d00f" collection="#[vars.event]" maxConcurrency="${maxconcurrency}">
+					<ee:transform doc:name="Store Data" doc:id="66861201-bd07-4a37-ba17-83049e490d80">
+				<ee:message>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="addressNumber"><![CDATA[%dw 2.0
+output application/json
+---
+trim(payload.E1VALU) as String]]></ee:set-variable>
+					<ee:set-variable variableName="routingCode"><![CDATA[%dw 2.0
+output application/json
+---
+trim(payload.E1AA20) as String]]></ee:set-variable>
+					<ee:set-variable variableName="OriginalPayload"><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-variable>
+					<ee:set-variable variableName="action"><![CDATA[%dw 2.0
+output application/json
+---
+trim(payload.E1ACTN) as String ]]></ee:set-variable>
+					<ee:set-variable variableName="sendToCPS"><![CDATA[%dw 2.0
+output application/json
+---
+trim(payload.E1HBST1) as String ]]></ee:set-variable>
+					<ee:set-variable variableName="autoPay"><![CDATA[%dw 2.0
+output application/json
+---
+trim(payload.E1HBST2) as String ]]></ee:set-variable>
+					<ee:set-variable variableName="soldOut"><![CDATA[%dw 2.0
+output application/json
+---
+trim(payload.E1HBST3) as String ]]></ee:set-variable>
+					<ee:set-variable variableName="optionSystem"><![CDATA[%dw 2.0
+output application/json
+---
+trim(payload.E1HBST4) as String ]]></ee:set-variable>
+					<ee:set-variable variableName="warrantySys"><![CDATA[%dw 2.0
+output application/json
+---
+trim(payload.E1HBST5) as String ]]></ee:set-variable>
+					<ee:set-variable variableName="fromFlow"><![CDATA[%dw 2.0
+output application/java
+---
+"PLAN_ENV"]]></ee:set-variable>
+					<ee:set-variable variableName="transmissionUser"><![CDATA[%dw 2.0
+output application/java
+---
+trim(payload.E1CRTU)]]></ee:set-variable>
+					<ee:set-variable variableName="businessKeys"><![CDATA[%dw 2.0
+output application/java
+---
+trim(payload.E1VALU) as String]]></ee:set-variable>
+				
+</ee:variables>
+			</ee:transform>
+					<flow-ref doc:name="Get-Plan-Env-Details" doc:id="386ee89f-7760-4ad6-8994-d90bb6a1d577" name="Get-PLAN-Details" />
+					<set-variable value="#[vars.count + 1 as Number]" doc:name="Count" doc:id="9b57f0d0-6e66-4b29-9a34-2f1b5d0d7359" variableName="count" />
+				</parallel-foreach>
+				<logger level="INFO" doc:name="Logger" doc:id="f381eabd-03c4-4d7c-b814-cb415dc8be85" message="All Events Has Been Processed" />
+			</otherwise>
+		</choice>
+
+	</flow>
+	</mule>

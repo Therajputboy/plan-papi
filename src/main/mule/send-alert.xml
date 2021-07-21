@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd 
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd">
+	<sub-flow name="Send-Alert-to-Support-Team" doc:id="66f5dc96-e3d8-4225-ad4f-405cbbc682a1" >
+		<ee:transform doc:name="DW to Map Email Notification" doc:id="d871c02f-68c1-4258-b724-e666e1ff8d30" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+import * from dw::core::Strings
+output application/json
+---
+{
+	    ApplicationName: app.name,
+	    FlowName: substringBefore(error.failingComponent, "/"),
+	    Division: "",
+        TransactionId: correlationId,
+        ErrorCode: attributes.statusCode default "500",
+        ErrorType : error.errorType.identifier,
+        ErrorMessage: vars.varErr,
+        EventDetail: trim(vars.OriginalPayload.E1VALU),
+        Timestamp: now()
+}]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="subject" ><![CDATA[%dw 2.0
+output application/json
+---
+"Error Notification From " ++ app.name ++ " In " ++ p('Environment')]]></ee:set-variable>
+				<ee:set-variable variableName="content" ><![CDATA[%dw 2.0
+output application/json
+---
+"Hello, You are receiving this alert because. Error Occured in " ++ app.name ++ " " ++ p('Environment') ++ " Please find the attachment below for more details "]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<email:send doc:name="Send Email Notification to Support Team" doc:id="63ac83fd-13cd-4fd3-843f-03c215042c85" config-ref="Email_SMTP" fromAddress="${email.fromAddress}" subject="#[vars.subject]">
+			<email:to-addresses >
+				<email:to-address value="${email.business}" />
+				<email:to-address value="${email.technical}" />
+			</email:to-addresses>
+			<email:body contentType="text/plain">
+			</email:body>
+			<email:attachments ><![CDATA[#[null]]]></email:attachments>
+		</email:send>
+		<logger level="INFO" doc:name="Success Message" doc:id="2276e8fc-0328-4481-9be7-55f572943ed6" message="Email Sent"/>
+	</sub-flow>
+	</mule>

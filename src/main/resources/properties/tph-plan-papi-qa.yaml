@@ -1,0 +1,104 @@
+Environment: "MS QA"
+
+#API Auto Discovery Configuration
+api:
+  id: "17026036"
+
+target:
+  port: "80" 
+  host: "LVL3CAMULQ1.tph.lcl"
+
+#Client Enforcement for Route API
+route:  
+    client_id: "![n8zWKLcYyrgCETSK7Sln6btrQnljoCzv68UREoMpRH906lQVWP5Mlw==]"
+    client_secret: "![EpLrnyc6P2f52Z0z3HMX0F05CK3P3zYuTx8PAk+AN+WvPYmYbeE3FA==]"
+    
+#ClientId Enforcement for E1 SAPI    
+e1:
+  client_id: "![CkxmR5sTnEPgaIgoKL6DgkBdtSxOcqsXPureo4oMSB0hjhpaG2TkWA==]"
+  client_secret: "![oABu6Cy/e69vbslW3jy8/wPAPDYKqouI8wz7c+4eVBLSgJfzXWW07w==]" 
+  sysapi:
+    planPath: "/api/1/e1/planDetails"
+    
+#Scheduer Configuration
+scheduler:
+  fixedFrequency: "15"
+  expression: "0/15 * 00-22  * * ?"  
+  delay: "300"
+   
+#parallel foreach
+maxconcurrency: "10" 
+
+#Until Successfull Configuration
+until:
+  maxRetries: "3"
+  millisec: "5000"                    
+
+#SMTP Configuration
+email:
+  fromAddress: "SMTP_SVC@tph1.com"
+  technical: "IntegrationSupport@TriPointeGroup.com"
+  business: "sai.prakash@apisero.com"
+  admin : "kopalle.prakash@gmail.com"
+  subject: "New Community Created"
+  content: "Hello, \n You are receiving this alert because: \n "
+  ## Below sample connection is for gmail as smtp ##
+  connection:
+    host: "smtp.sendgrid.net"
+    port: "587"
+    user: "apikey"
+    password: "![ZqyoaXF2jAr3vLWLTd0NefbgCS7IXN2BKrGqKtZCIbNWEpxm+A0eqdxfQWjowq+yg6JAnAOTjOt/uQSDiEvDQnWXfwknNn1g]"
+    ### if using gmail to send email, please allow less secure apps for above email id https://myaccount.google.com/lesssecureapps ###
+    properties:
+      key: "smtpauthenticate"
+      value: "1"   
+errorCodeMessage:
+  ### APIKIT Errors ###
+  apikit:
+    badRequest:
+      code: "400"
+      #description: "Request validation error"
+      description: "Bad Request"
+    notFound:
+      code: "404"
+      #description: "Resource not found"
+      description: "Not Found"
+    methodNotAllowed:
+      code: "405"
+      #description: "HTTP method not allowed"
+      description: "Method Not Allowed"
+    notAcceptable:
+      code: "406"
+      #description: "Requested content type not available"
+      description: "Not Acceptable"
+    unsupportedMediaType:
+      code: "415"
+      #description: "Payload format is in an unsupported format"
+      description: "Unsupported Media Type"
+    notImplemented:
+      code: "501"
+      #description: "Requested functionality is not supported"
+      description: "Not Implemented"
+      
+  ### HTTP Errors ###
+  http:
+    connectivity:
+      code: "500"
+      #description: "Connectivity Error, Please try later"
+      description: "Internal Server Error"
+    forbidden:
+      code: "403"
+      #description: "Server refused to authorize the request"
+      description: "Forbidden" 
+    serviceUnavailable:
+      code: "503"
+      #description: "Server not ready to handle the request"
+      description: "Service Unavailable"
+    timeout:
+      code: "504"
+      #description: "Gateway Timeout - Server did not get a response in time"
+      description: "Gateway Timeout" 
+    unauthorized:
+      code: "401"
+      #description: "Invalid Credentials"
+      description: "Unauthorized"         

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway" xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties"
+	xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd">
+	<global-property doc:name="Global Property" doc:id="744a2ef6-e250-44d2-b3ac-2f090c06a2f0" name="env" value="qa" />
+	<configuration-properties doc:name="Configuration properties" doc:id="19732314-5b93-411a-be69-80d635be3a4b" file="properties\tph-plan-papi-${env}.yaml" />
+	<import doc:name="Import" doc:id="dad4b9ed-04f4-447c-bcdd-62d5ca6ce5b1" file="apisero-generic-error-handler.xml" />
+	<import doc:name="Import" doc:id="c5723a08-8d5c-416b-9d8b-4492d5b09c2a" file="error-framework-global-config.xml" />
+	<http:request-config name="Target_SAPI_HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="cd5c7216-ee25-4206-9936-f74ac8ed1a92" >
+	</http:request-config>
+	<email:smtp-config name="Email_SMTP" doc:name="Email SMTP" doc:id="34d99b7f-03df-44d5-bfc1-0c316a359129" >
+		<email:smtp-connection host="${email.connection.host}" port="${email.connection.port}" user="${email.connection.user}" password="${secure::email.connection.password}" >
+			<email:properties >
+				<email:property key="${email.connection.properties.key}" value="${email.connection.properties.value}" />
+			</email:properties>
+		</email:smtp-connection>
+	</email:smtp-config>
+	<configuration doc:name="Configuration" doc:id="bfe774e3-44b4-4c16-85a7-1a2415d5e0cc" defaultErrorHandler-ref="global_error_handler" />
+	<global-property doc:name="Global Property" doc:id="d111adf2-bc2f-40d9-a7fc-0f616b5d7e2b" name="key" value="tripointe" />
+	<secure-properties:config name="Secure_Properties_Config1" doc:name="Secure Properties Config" doc:id="d7357467-3b5b-482c-a12c-edf4123c3c2c" file="properties\tph-plan-papi-${env}.yaml" key="${key}" >
+		<secure-properties:encrypt algorithm="Blowfish" />
+	</secure-properties:config>
+	<api-gateway:autodiscovery apiId="${api.id}" ignoreBasePath="true" doc:name="API Autodiscovery" doc:id="4957a8b9-cb7b-4331-b966-4069f09e7266" flowRef="plan-process-api-main" />
+</mule>
